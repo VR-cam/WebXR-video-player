@@ -1,0 +1,20 @@
+{
+	"compilerOptions": {
+		"target": "es6",
+		"removeComments": false,
+		"preserveConstEnums": false,
+		"noImplicitReturns": true,
+		"noUnusedLocals": true,
+		"rootDir": "./vrPlayer",
+		"outFile": "../build/vrPlayer.js",
+		"typeRoots": [
+			"./vendor"
+		],
+		"sourceMap": true,
+		"listFiles": false,
+		"listEmittedFiles": false,
+		"strict": true,
+		"pretty": true,
+		"declaration": false,
+	}
+}

@@ -1,0 +1,33 @@
+body {
+	font-family: Arial, Helvetica, sans-serif;
+	font-weight: normal;
+}
+
+.vrControls {
+	position: absolute;
+	width: 100%;
+	height: 150px;
+	left: 0;
+	bottom: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 2;
+}
+
+.vrControls #enterVrButton {
+	color: #000000;
+	border: none;
+	border-radius: 7px;
+	background: linear-gradient(#ffc700, #ff8a00);
+	padding: 14px 30px;
+	cursor: pointer;
+	margin: 10px;
+	font-size: 16px;
+	font-weight: bold;
+	z-index: 2;
+}
+
+#videoElement {
+	width: 1px;
+}
