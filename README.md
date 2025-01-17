@@ -2,7 +2,7 @@
 
 # VR.cam - WebXR video player
 
-The purpose of this open source web based video player is to allow easy playback of the video content that was created using one of the Vr.cam webcam devices.
+The purpose of this open source web based video player is to allow easy playback of the video content that was created using one of the Vr.cam webcam devices. Check out a quick demo of the player [here](https://vr.cam/video/).
 
 The implementation of the 3d environment rendered by this library was created with the help of the Babylon.js library.
 
