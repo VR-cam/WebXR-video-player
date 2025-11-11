@@ -29,8 +29,8 @@ namespace Vr {
 					this.container = BABYLON.MeshBuilder.CreatePlane(
 						'playButtonContainer',
 						{
-							width          : 1.2,
-							height         : 1.2,
+							width          : 0.6,
+							height         : 0.6,
 							sideOrientation: BABYLON.Mesh.DOUBLESIDE,
 						},
 						this.playerInstance.scene

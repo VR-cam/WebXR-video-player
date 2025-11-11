@@ -32,7 +32,7 @@ namespace Vr {
 
 				this.container.position.x = 0;
 				this.container.position.y = 0;
-				this.container.position.z = 0;
+				this.container.position.z = 6;
 
 				this.container.isVisible = false;
 

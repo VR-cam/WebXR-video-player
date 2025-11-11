@@ -266,6 +266,10 @@ namespace Vr {
 
 			public audioMute(mute: boolean) {
 				this.videoTexture.video.muted = mute;
+				// ios fix
+				setTimeout(() => {
+					this.videoTexture.video.play();
+				}, 200);
 			}
 
 			public videoPlay(play: boolean) {

@@ -30,28 +30,28 @@ namespace Vr {
 				this.container            = BABYLON.MeshBuilder.CreatePlane(
 					'draggableHandleContainer',
 					{
-						width          : 10,
+						width          : 5,
 						height         : 1,
 						sideOrientation: BABYLON.Mesh.DOUBLESIDE,
 					},
 					this.playerInstance.scene
 				);
 				this.material             = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.container);
-				this.container.position.z = -1;
+				this.container.position.z = -2;
 
-				this.container.renderingGroupId = 2;
+				this.container.renderingGroupId = Vr.Library.Helpers.getRenderingGroupId(2);
 
 				this.rectangleContainer            = BABYLON.MeshBuilder.CreatePlane(
 					'draggableButtonContainer',
 					{
-						width          : 3,
-						height         : 2.5,
+						width          : 1.5,
+						height         : 1.75,
 						sideOrientation: BABYLON.Mesh.DOUBLESIDE,
 					},
 					this.playerInstance.scene
 				);
 				this.rectangleContainer.position.z = 0;
-				this.rectangleContainer.position.y = -1.7;
+				this.rectangleContainer.position.y = -0.95;
 
 				this.rectangleContainer.renderingGroupId = 0;
 
@@ -75,14 +75,15 @@ namespace Vr {
 				this.buttonContainer            = BABYLON.MeshBuilder.CreatePlane(
 					'draggableButtonContainer',
 					{
-						width          : 3.4,
-						height         : 0.4,
+						width          : 1.7,
+						height         : 0.2,
 						sideOrientation: BABYLON.Mesh.DOUBLESIDE,
 					},
 					this.playerInstance.scene
 				);
-				this.buttonContainer.position.z = -1;
-				this.buttonContainer.position.y = -0.15;
+				this.buttonContainer.position.z = -0.2;
+				this.buttonContainer.position.y = -0.04;
+				this.buttonContainer.rotation.x = Math.PI / 8;
 
 				this.buttonMaterial = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.buttonContainer);
 				this.button         = BABYLON.GUI.Button.CreateSimpleButton('containerButton', '');

@@ -13,7 +13,9 @@ var Vr;
             this.renderCanvas.style.position = 'absolute';
             this.renderCanvas.style.zIndex = '1';
             document.body.appendChild(this.renderCanvas);
-            BABYLON.RenderingManager.MIN_RENDERINGGROUPS = -1;
+            if (!Vr.Library.Helpers.isVisionOS()) {
+                BABYLON.RenderingManager.MIN_RENDERINGGROUPS = -1;
+            }
             this.babylonEngine = new BABYLON.Engine(this.renderCanvas, Player.ENGINE_OPTION_ANTIALIASING, {
                 preserveDrawingBuffer: Player.ENGINE_OPTION_PRESERVE_DRAWING_BUFFER,
                 stencil: Player.ENGINE_OPTION_STENCIL,
@@ -35,10 +37,11 @@ var Vr;
             this.videoProjection = new Vr.VideoProjection.ProjectionManger(this.scene, this);
             this.uiDraggableHandle = new Vr.Ui.DraggableHandle(this);
             this.uiUserPanel = new Vr.Ui.UserPanel(this, this.uiDraggableHandle.container);
-            this.uiDraggableHandle.container.position.z = 12;
-            this.uiDraggableHandle.container.position.y = -4;
+            this.uiDraggableHandle.container.position.z = 5;
+            this.uiDraggableHandle.container.position.y = -2;
             this.uiUserPanel.container.position.y = 0.4;
             this.uiUserPanel.container.position.z = 0;
+            this.projectedReticle = new Vr.Ui.ProjectedReticle(this);
             this.xrHelper = undefined;
             BABYLON.WebXRDefaultExperience.CreateAsync(this.scene, {
                 ignoreNativeCameraTransformation: false,
@@ -55,6 +58,22 @@ var Vr;
                     xrInput: xrHelper.input,
                 }, true, false);
                 this.createMotionController(xrHelper);
+                xrHelper.input.onControllerAddedObservable.add((controller) => {
+                    var _a, _b;
+                    const motionController = controller.motionController;
+                    if (!motionController) {
+                        return;
+                    }
+                    const trigger = ((_a = motionController.getComponent) === null || _a === void 0 ? void 0 : _a.call(motionController, 'xr-standard-trigger')) ||
+                        ((_b = motionController.getMainComponent) === null || _b === void 0 ? void 0 : _b.call(motionController));
+                    if (trigger && trigger.onButtonStateChangedObservable) {
+                        trigger.onButtonStateChangedObservable.add((c) => {
+                            if (c.pressed) {
+                                // this._simulateCenterClick();
+                            }
+                        });
+                    }
+                });
             }, (error) => {
                 //
             });
@@ -97,9 +116,14 @@ var Vr;
             });
         }
         enterVr() {
+            // Vision OS cannot unmute in a immersive mode unless it was already unmuted before entering
+            if (this.uiUserPanel.audioButton.isMuted) {
+                this.uiUserPanel.audioButton.setMuted(false);
+            }
             return new Promise((resolve, reject) => {
                 if (this.xrHelper) {
                     this.xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local').then(() => {
+                        this.projectedReticle.enable();
                         resolve();
                     }, (error) => {
                         reject();
@@ -111,6 +135,9 @@ var Vr;
             return new Promise((resolve, reject) => {
                 if (this.xrHelper) {
                     this.xrHelper.baseExperience.exitXRAsync().then(() => {
+                        if (Vr.Library.Helpers.isVisionOS()) {
+                            window.location.href = window.location.href;
+                        }
                         resolve();
                     }, (error) => {
                         reject();
@@ -296,6 +323,106 @@ var Vr;
             static createSvgIconUrl(svgIcon) {
                 return 'img/svg/' + svgIcon.replace('#', '?' + (+new Date()) + '#');
             }
+            static detectApplePlatform() {
+                var _a, _b, _c;
+                const nav = typeof navigator !== 'undefined' ? navigator : {};
+                const ua = (nav.userAgent || '').toLowerCase();
+                const vendor = (nav.vendor || '').toLowerCase();
+                const brands = ((_b = (_a = nav.userAgentData) === null || _a === void 0 ? void 0 : _a.brands) === null || _b === void 0 ? void 0 : _b.map((b) => {
+                    b.brand.toLowerCase();
+                })) || [];
+                const uaPlatformCH = (((_c = nav.userAgentData) === null || _c === void 0 ? void 0 : _c.platform) || '').toLowerCase();
+                const platform = (nav.platform || '').toLowerCase();
+                const maxTouch = Number(nav.maxTouchPoints || 0);
+                // Basic tokens
+                const isAppleVendor = vendor.includes('apple');
+                const isSafariToken = /safari/.test(ua) && !/chrome|crios|chromium|edg|fxios|firefox/.test(ua);
+                const isiPadToken = /ipad/.test(ua);
+                const isiPhoneToken = /iphone|ipod/.test(ua);
+                const isMacToken = /macintosh/.test(ua) || platform === 'macintel';
+                // UA-CH hints (future-proof)
+                const chIsVision = uaPlatformCH === 'visionos';
+                const chIsMac = uaPlatformCH === 'macos';
+                const chIsIOS = uaPlatformCH === 'ios';
+                const chHints = { chIsVision, chIsMac, chIsIOS };
+                const uaMentionsVision = /visionos|apple\s*vision/.test(ua);
+                const hasAnyTouch = ('ontouchstart' in (typeof window !== 'undefined' ? window : {})) || maxTouch > 0;
+                const looksLikeDesktopUAButIsIPad = isMacToken && maxTouch > 1 && isAppleVendor;
+                const looksLikeIPhone = isiPhoneToken || (chIsIOS && !isiPadToken);
+                const hasWebXR = typeof nav.xr !== 'undefined';
+                const isStandalonePropKnown = typeof ( /** @type any */(nav)).standalone !== 'undefined'; // iOS/iPadOS PWAs expose this
+                let guess = 'unknown';
+                let confidence = 0.2;
+                if (chIsVision || uaMentionsVision) {
+                    guess = 'visionOS';
+                    confidence = 0.95;
+                }
+                else if (looksLikeIPhone) {
+                    guess = 'iOS';
+                    confidence = 0.9;
+                }
+                else if (isiPadToken || looksLikeDesktopUAButIsIPad) {
+                    guess = 'iPadOS';
+                    confidence = 0.9;
+                }
+                else if (isSafariToken && isAppleVendor && (isiPadToken || isMacToken) && !hasAnyTouch) {
+                    if (chIsMac) {
+                        guess = 'macOS';
+                        confidence = 0.85;
+                    }
+                    else {
+                        guess = 'visionOS';
+                        confidence = 0.65;
+                    }
+                }
+                else if (isSafariToken && isAppleVendor && isMacToken && !hasAnyTouch) {
+                    guess = 'macOS';
+                    confidence = Math.max(confidence, chIsMac ? 0.9 : 0.7);
+                }
+                else if (chIsMac) {
+                    guess = 'macOS';
+                    confidence = Math.max(confidence, 0.8);
+                }
+                else if (chIsIOS) {
+                    guess = maxTouch > 1 ? 'iPadOS' : 'iOS';
+                    confidence = Math.max(confidence, 0.7);
+                }
+                if (guess === 'visionOS' && hasWebXR) {
+                    confidence = Math.min(1, confidence + 0.05);
+                }
+                if ((guess === 'iOS' || guess === 'iPadOS') && isStandalonePropKnown) {
+                    confidence = Math.min(1, confidence + 0.05);
+                }
+                return {
+                    platform: /** @type {'visionOS'|'iPadOS'|'iOS'|'macOS'|'unknown'} */ (guess),
+                    confidence,
+                    signals: Object.assign({ ua,
+                        vendor,
+                        brands,
+                        uaPlatformCH,
+                        isAppleVendor,
+                        isSafariToken,
+                        isiPadToken,
+                        isiPhoneToken,
+                        isMacToken,
+                        uaMentionsVision,
+                        maxTouch,
+                        hasAnyTouch,
+                        looksLikeDesktopUAButIsIPad,
+                        hasWebXR,
+                        isStandalonePropKnown }, chHints)
+                };
+            }
+            static isVisionOS() {
+                let platform = this.detectApplePlatform();
+                return platform.signals.isAppleVendor && platform.signals.hasWebXR;
+            }
+            static getRenderingGroupId(defaultRenderingGroupId) {
+                if (Helpers.isVisionOS()) {
+                    return 0;
+                }
+                return defaultRenderingGroupId;
+            }
         }
         Library.Helpers = Helpers;
     })(Library = Vr.Library || (Vr.Library = {}));
@@ -309,20 +436,20 @@ var Vr;
                 super(playerInstance);
                 this.playerInstance = playerInstance;
                 this.container = BABYLON.MeshBuilder.CreatePlane('draggableHandleContainer', {
-                    width: 10,
+                    width: 5,
                     height: 1,
                     sideOrientation: BABYLON.Mesh.DOUBLESIDE,
                 }, this.playerInstance.scene);
                 this.material = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.container);
-                this.container.position.z = -1;
-                this.container.renderingGroupId = 2;
+                this.container.position.z = -2;
+                this.container.renderingGroupId = Vr.Library.Helpers.getRenderingGroupId(2);
                 this.rectangleContainer = BABYLON.MeshBuilder.CreatePlane('draggableButtonContainer', {
-                    width: 3,
-                    height: 2.5,
+                    width: 1.5,
+                    height: 1.75,
                     sideOrientation: BABYLON.Mesh.DOUBLESIDE,
                 }, this.playerInstance.scene);
                 this.rectangleContainer.position.z = 0;
-                this.rectangleContainer.position.y = -1.7;
+                this.rectangleContainer.position.y = -0.95;
                 this.rectangleContainer.renderingGroupId = 0;
                 this.rectangleMaterial = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.rectangleContainer);
                 this.rectangle = new BABYLON.GUI.Rectangle();
@@ -337,12 +464,13 @@ var Vr;
                 this.rectangleContainer.parent = this.container;
                 this.rectangleContainer.isPickable = false;
                 this.buttonContainer = BABYLON.MeshBuilder.CreatePlane('draggableButtonContainer', {
-                    width: 3.4,
-                    height: 0.4,
+                    width: 1.7,
+                    height: 0.2,
                     sideOrientation: BABYLON.Mesh.DOUBLESIDE,
                 }, this.playerInstance.scene);
-                this.buttonContainer.position.z = -1;
-                this.buttonContainer.position.y = -0.15;
+                this.buttonContainer.position.z = -0.2;
+                this.buttonContainer.position.y = -0.04;
+                this.buttonContainer.rotation.x = Math.PI / 8;
                 this.buttonMaterial = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.buttonContainer);
                 this.button = BABYLON.GUI.Button.CreateSimpleButton('containerButton', '');
                 this.button.verticalAlignment = BABYLON.GUI.Rectangle.VERTICAL_ALIGNMENT_TOP;
@@ -406,27 +534,171 @@ var Vr;
 (function (Vr) {
     let Ui;
     (function (Ui) {
+        class ProjectedReticle extends Vr.Library.AbstractComponent {
+            constructor(playerInstance) {
+                super(playerInstance);
+                this.playerInstance = playerInstance;
+                this.reticle = null;
+                this.reticleMat = null;
+                this.hoveredMesh = null;
+                this.onWindowClick = null;
+            }
+            create() {
+                if (!this.playerInstance.scene.onPointerOverObservable) {
+                    this.playerInstance.scene.onPointerOverObservable = new BABYLON.Observable();
+                }
+                if (!this.playerInstance.scene.onPointerOutObservable) {
+                    this.playerInstance.scene.onPointerOutObservable = new BABYLON.Observable();
+                }
+                if (!this.playerInstance.scene.onPointerPickObservable) {
+                    this.playerInstance.scene.onPointerPickObservable = new BABYLON.Observable();
+                }
+                const disc = BABYLON.MeshBuilder.CreateDisc("gazeReticle", {
+                    radius: 0.02,
+                    tessellation: 48
+                }, this.playerInstance.scene);
+                const mat = new BABYLON.StandardMaterial("gazeReticleMat", this.playerInstance.scene);
+                mat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                mat.disableLighting = true;
+                mat.backFaceCulling = false;
+                mat.alpha = 0.2;
+                disc.material = mat;
+                disc.isPickable = false;
+                disc.renderingGroupId = Vr.Library.Helpers.getRenderingGroupId(3);
+                disc.setEnabled(false);
+                this.reticle = disc;
+                this.reticleMat = mat;
+                this.hoveredMesh = null;
+                this.playerInstance.scene.onBeforeRenderObservable.add(() => {
+                    const cam = this.playerInstance.scene.activeCamera || this.playerInstance.camera;
+                    if (!cam) {
+                        return;
+                    }
+                    const pickRay = cam.getForwardRay(100);
+                    const pick = this.playerInstance.scene.pickWithRay(pickRay, (m) => m && m.isPickable && m !== this.reticle);
+                    if (pick && pick.hit && pick.pickedPoint && pick.pickedMesh) {
+                        this.reticle.position.copyFrom(pick.pickedPoint);
+                        this.reticle.setEnabled(true);
+                        let n = null;
+                        if (typeof pick.getNormal === "function") {
+                            try {
+                                n = pick.getNormal(true);
+                            }
+                            catch (_) {
+                                n = null;
+                            }
+                        }
+                        if (n && n.length() > 0.0001) {
+                            const target = this.reticle.position.add(n);
+                            this.reticle.lookAt(target);
+                        }
+                        else {
+                            const forward = cam.getForwardRay(1).direction;
+                            this.reticle.lookAt(this.reticle.position.add(forward));
+                        }
+                        // this.reticleMat.emissiveColor.set(1, 1, 0);
+                        if (typeof this.playerInstance.scene.simulatePointerMove === "function") {
+                            this.playerInstance.scene.simulatePointerMove(pick);
+                        }
+                        this.hoveredMesh = pick.pickedMesh;
+                        if (pick.pickedMesh.name == 'videoContainer') {
+                            this.reticleMat.alpha = 0;
+                        }
+                    }
+                    else {
+                        if (this.reticle.isEnabled()) {
+                            this.reticle.setEnabled(false);
+                        }
+                        this.reticleMat.emissiveColor.set(1, 1, 1);
+                        this.reticleMat.alpha = 0.2;
+                        if (typeof this.playerInstance.scene.simulatePointerMove === "function") {
+                            const empty = new BABYLON.PickingInfo();
+                            empty.hit = false;
+                            this.playerInstance.scene.simulatePointerMove(empty);
+                        }
+                        this.hoveredMesh = null;
+                    }
+                });
+                window.addEventListener("click", () => this.simulateCenterClick());
+            }
+            simulateCenterClick() {
+                const cam = this.playerInstance.scene.activeCamera || this.playerInstance.camera;
+                if (!cam) {
+                    return;
+                }
+                const pickRay = cam.getForwardRay(100);
+                const pick = this.playerInstance.scene.pickWithRay(pickRay, (m) => m && m.isPickable && m !== this.reticle);
+                if (pick && pick.hit) {
+                    if (typeof this.playerInstance.scene.simulatePointerDown === "function" && typeof this.playerInstance.scene.simulatePointerUp === "function") {
+                        this.playerInstance.scene.simulatePointerDown(pick);
+                        this.playerInstance.scene.simulatePointerUp(pick);
+                        this.reticle.scaling.setAll(1.4);
+                    }
+                    else if (this.playerInstance.scene.onPointerPickObservable) {
+                        //@ts-ignore
+                        this.playerInstance.scene.onPointerPickObservable.notifyObservers({ pickInfo: pick });
+                        this.reticle.scaling.setAll(1.4);
+                    }
+                }
+            }
+            enable() {
+                if (!Vr.Library.Helpers.isVisionOS()) {
+                    return;
+                }
+                if (this.reticle) {
+                    return;
+                }
+                this.create();
+                this.onWindowClick = () => {
+                    this.simulateCenterClick();
+                };
+                window.addEventListener("click", this.onWindowClick);
+            }
+            disable() {
+                if (this.onWindowClick) {
+                    window.removeEventListener("click", this.onWindowClick);
+                    this.onWindowClick = null;
+                }
+                if (this.reticle) {
+                    this.reticle.dispose();
+                    this.reticle = null;
+                }
+                if (this.reticleMat) {
+                    this.reticleMat.dispose();
+                    this.reticleMat = null;
+                }
+                this.hoveredMesh = null;
+            }
+        }
+        Ui.ProjectedReticle = ProjectedReticle;
+    })(Ui = Vr.Ui || (Vr.Ui = {}));
+})(Vr || (Vr = {}));
+var Vr;
+(function (Vr) {
+    let Ui;
+    (function (Ui) {
         class UserPanel extends Vr.Library.AbstractComponent {
             constructor(playerInstance, parentElement) {
                 super(playerInstance);
                 this.playerInstance = playerInstance;
                 this.container = BABYLON.MeshBuilder.CreatePlane('userPanelContainer', {
-                    width: 4,
-                    height: 1.5,
+                    width: 2,
+                    height: 0.75,
                     sideOrientation: BABYLON.Mesh.DOUBLESIDE,
                 }, this.playerInstance.scene);
                 this.container.renderingGroupId = 0;
                 this.containerMaterial = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.container, 400, 150);
                 this.containerRectangle = new BABYLON.GUI.Rectangle();
                 this.closeButton = new Ui.Component.CloseButton(this.playerInstance, this.container);
-                this.closeButton.container.position.set(1.3, 0.01, -0.1);
+                this.closeButton.container.position.set(0.65, 0.02, -0.1);
                 this.closeButton.container.alphaIndex = 10;
                 this.audioButton = new Ui.Component.AudioButton(this.playerInstance, this.container);
-                this.audioButton.container.position.set(-1.3, 0.01, -0.1);
+                this.audioButton.container.position.set(-0.65, 0.02, -0.1);
                 this.audioButton.container.alphaIndex = 10;
                 this.audioButton.setMuted(true);
                 this.playButton = new Ui.Component.PlayButton(this.playerInstance, this.container);
-                this.playButton.container.position.set(0, 0.01, -0.1);
+                this.playButton.container.position.set(0, 0.04, -0.1);
                 this.playButton.container.alphaIndex = 10;
                 this.containerRectangle.thickness = 2;
                 this.containerRectangle.cornerRadius = 50;
@@ -461,8 +733,8 @@ var Vr;
                     this.playerInstance = playerInstance;
                     this.isMuted = false;
                     this.container = BABYLON.MeshBuilder.CreatePlane('audioButtonContainer', {
-                        width: 0.8,
-                        height: 0.8,
+                        width: 0.4,
+                        height: 0.4,
                         sideOrientation: BABYLON.Mesh.DOUBLESIDE,
                     }, this.playerInstance.scene);
                     this.container.renderingGroupId = 0;
@@ -552,8 +824,8 @@ var Vr;
                     super(playerInstance);
                     this.playerInstance = playerInstance;
                     this.container = BABYLON.MeshBuilder.CreatePlane('closeButtonPlane', {
-                        width: 0.8,
-                        height: 0.8
+                        width: 0.4,
+                        height: 0.4
                     }, this.playerInstance.scene);
                     this.container.renderingGroupId = 0;
                     this.material = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.container);
@@ -611,8 +883,8 @@ var Vr;
                     this.playerInstance = playerInstance;
                     this.isPlaying = true;
                     this.container = BABYLON.MeshBuilder.CreatePlane('playButtonContainer', {
-                        width: 1.2,
-                        height: 1.2,
+                        width: 0.6,
+                        height: 0.6,
                         sideOrientation: BABYLON.Mesh.DOUBLESIDE,
                     }, this.playerInstance.scene);
                     this.container.renderingGroupId = 0;
@@ -706,7 +978,7 @@ var Vr;
                 }, this.scene);
                 this.container.position.x = 0;
                 this.container.position.y = 0;
-                this.container.position.z = 0;
+                this.container.position.z = 6;
                 this.container.isVisible = false;
                 this.maxZoomIn = 0;
                 this.maxZoomOut = 50;
@@ -875,6 +1147,10 @@ var Vr;
             }
             audioMute(mute) {
                 this.videoTexture.video.muted = mute;
+                // ios fix
+                setTimeout(() => {
+                    this.videoTexture.video.play();
+                }, 200);
             }
             videoPlay(play) {
                 if (play) {
@@ -918,7 +1194,7 @@ var Vr;
                         sideOrientation: BABYLON.Mesh.BACKSIDE,
                     }, this.scene);
                     this.ribbon.material = this.videoMaterial;
-                    this.ribbon.renderingGroupId = -1;
+                    this.ribbon.renderingGroupId = Vr.Library.Helpers.getRenderingGroupId(-1);
                     this.ribbon.position.x = 0;
                     this.ribbon.position.y = 0;
                     this.ribbon.position.z = 3;
@@ -1011,11 +1287,11 @@ var Vr;
                     }, this.scene);
                     this.ribbon.rotation.z = Math.PI;
                     this.ribbon.material = this.videoMaterial;
-                    this.ribbon.renderingGroupId = -1;
+                    this.ribbon.renderingGroupId = Vr.Library.Helpers.getRenderingGroupId(-1);
                     this.ribbon.position.x = 0;
                     this.ribbon.position.y = 0;
                     this.ribbon.position.z = 5;
-                    this.ribbon.alphaIndex = 0;
+                    this.ribbon.alphaIndex = -1;
                     this.ribbon.parent = this.container;
                     this.ribbon.isPickable = false;
                 }

@@ -50,13 +50,13 @@ namespace Vr {
 					this.ribbon.rotation.z = Math.PI;
 
 					this.ribbon.material         = this.videoMaterial;
-					this.ribbon.renderingGroupId = -1;
+					this.ribbon.renderingGroupId = Vr.Library.Helpers.getRenderingGroupId(-1);
 
 					this.ribbon.position.x = 0;
 					this.ribbon.position.y = 0;
 					this.ribbon.position.z = 5;
 
-					this.ribbon.alphaIndex = 0;
+					this.ribbon.alphaIndex = -1;
 
 					this.ribbon.parent     = this.container;
 					this.ribbon.isPickable = false;

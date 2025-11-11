@@ -49,7 +49,7 @@ namespace Vr {
 					);
 
 					this.ribbon.material         = this.videoMaterial;
-					this.ribbon.renderingGroupId = -1;
+					this.ribbon.renderingGroupId = Vr.Library.Helpers.getRenderingGroupId(-1);
 
 					this.ribbon.position.x = 0;
 					this.ribbon.position.y = 0;

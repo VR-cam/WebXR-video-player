@@ -10647,6 +10647,13 @@ declare module BABYLON {
              * Note: This event can be trigger more than once per frame (because sprites can be rendered by render target textures as well)
              */
             onAfterSpritesRenderingObservable: Observable<Scene>;
+
+	        onPointerPickObservable: Observable<Scene>;
+
+	        onPointerOverObservable: Observable<Scene>;
+
+	        onPointerOutObservable: Observable<Scene>;
+
             /** @hidden */
             _internalPickSprites(ray: Ray, predicate?: (sprite: Sprite) => boolean, fastCheck?: boolean, camera?: Camera): Nullable<PickingInfo>;
             /** Launch a ray to try to pick a sprite in the scene

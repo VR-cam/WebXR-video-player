@@ -31,6 +31,7 @@ namespace Vr {
 		public videoProjection: Vr.VideoProjection.ProjectionManger;
 		private uiDraggableHandle: Vr.Ui.DraggableHandle;
 		private uiUserPanel: Vr.Ui.UserPanel;
+		private projectedReticle: Vr.Ui.ProjectedReticle;
 
 		constructor(videoUrl: string) {
 
@@ -46,16 +47,18 @@ namespace Vr {
 
 			document.body.appendChild(this.renderCanvas);
 
-			BABYLON.RenderingManager.MIN_RENDERINGGROUPS = -1;
+			if (!Vr.Library.Helpers.isVisionOS()) {
+				BABYLON.RenderingManager.MIN_RENDERINGGROUPS = -1;
+			}
 
 			this.babylonEngine = new BABYLON.Engine(
 				this.renderCanvas,
 				Player.ENGINE_OPTION_ANTIALIASING,
 				{
-					preserveDrawingBuffer      : Player.ENGINE_OPTION_PRESERVE_DRAWING_BUFFER,
-					stencil                    : Player.ENGINE_OPTION_STENCIL,
-					disableWebGL2Support       : Player.ENGINE_OPTION_DISABLE_WEBGL_2,
-					xrCompatible               : Player.ENGINE_OPTION_XR_COMPATIBLE,
+					preserveDrawingBuffer: Player.ENGINE_OPTION_PRESERVE_DRAWING_BUFFER,
+					stencil              : Player.ENGINE_OPTION_STENCIL,
+					disableWebGL2Support : Player.ENGINE_OPTION_DISABLE_WEBGL_2,
+					xrCompatible         : Player.ENGINE_OPTION_XR_COMPATIBLE,
 				},
 				Player.ENGINE_OPTION_ADAPT_TO_DEVICE_RATIO
 			);
@@ -70,7 +73,7 @@ namespace Vr {
 			);
 			this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
-			this.light           = new BABYLON.PointLight(
+			this.light = new BABYLON.PointLight(
 				"PointLight",
 				new BABYLON.Vector3(0, 0, -0.5),
 				this.scene
@@ -91,10 +94,12 @@ namespace Vr {
 			this.uiDraggableHandle = new Vr.Ui.DraggableHandle(this);
 			this.uiUserPanel       = new Vr.Ui.UserPanel(this, this.uiDraggableHandle.container);
 
-			this.uiDraggableHandle.container.position.z = 12;
-			this.uiDraggableHandle.container.position.y = -4;
+			this.uiDraggableHandle.container.position.z = 5;
+			this.uiDraggableHandle.container.position.y = -2;
 			this.uiUserPanel.container.position.y       = 0.4;
 			this.uiUserPanel.container.position.z       = 0;
+
+			this.projectedReticle = new Vr.Ui.ProjectedReticle(this);
 
 			this.xrHelper = undefined;
 			BABYLON.WebXRDefaultExperience.CreateAsync(this.scene, {
@@ -118,6 +123,23 @@ namespace Vr {
 					);
 
 					this.createMotionController(xrHelper);
+
+					xrHelper.input.onControllerAddedObservable.add((controller) => {
+						const motionController = controller.motionController;
+						if (!motionController) {
+							return;
+						}
+						const trigger =
+							      motionController.getComponent?.('xr-standard-trigger') ||
+							      motionController.getMainComponent?.();
+						if (trigger && trigger.onButtonStateChangedObservable) {
+							trigger.onButtonStateChangedObservable.add((c) => {
+								if (c.pressed) {
+									// this._simulateCenterClick();
+								}
+							});
+						}
+					});
 
 				},
 				(error: Error) => {
@@ -177,11 +199,18 @@ namespace Vr {
 		}
 
 		public enterVr(): Promise<void> {
+
+			// Vision OS cannot unmute in a immersive mode unless it was already unmuted before entering
+			if (this.uiUserPanel.audioButton.isMuted) {
+				this.uiUserPanel.audioButton.setMuted(false);
+			}
+
 			return new Promise((resolve, reject) => {
 
 				if (this.xrHelper) {
 					this.xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local').then(
 						() => {
+							this.projectedReticle.enable();
 							resolve();
 						},
 						(error: Error) => {
@@ -199,6 +228,11 @@ namespace Vr {
 				if (this.xrHelper) {
 					this.xrHelper.baseExperience.exitXRAsync().then(
 						() => {
+
+							if (Vr.Library.Helpers.isVisionOS()) {
+								window.location.href = window.location.href;
+							}
+
 							resolve();
 						},
 						(error: Error) => {

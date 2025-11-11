@@ -29,8 +29,8 @@ namespace Vr {
 					this.container = BABYLON.MeshBuilder.CreatePlane(
 						'audioButtonContainer',
 						{
-							width          : 0.8,
-							height         : 0.8,
+							width          : 0.4,
+							height         : 0.4,
 							sideOrientation: BABYLON.Mesh.DOUBLESIDE,
 						},
 						this.playerInstance.scene

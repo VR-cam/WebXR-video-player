@@ -24,8 +24,8 @@ namespace Vr {
 				this.container = BABYLON.MeshBuilder.CreatePlane(
 					'userPanelContainer',
 					{
-						width          : 4,
-						height         : 1.5,
+						width          : 2,
+						height         : 0.75,
 						sideOrientation: BABYLON.Mesh.DOUBLESIDE,
 					},
 					this.playerInstance.scene
@@ -37,17 +37,17 @@ namespace Vr {
 				this.containerRectangle = new BABYLON.GUI.Rectangle();
 
 				this.closeButton = new Component.CloseButton(this.playerInstance, this.container);
-				this.closeButton.container.position.set(1.3, 0.01, -0.1);
+				this.closeButton.container.position.set(0.65, 0.02, -0.1);
 				this.closeButton.container.alphaIndex = 10;
 
 				this.audioButton = new Component.AudioButton(this.playerInstance, this.container);
-				this.audioButton.container.position.set(-1.3, 0.01, -0.1);
+				this.audioButton.container.position.set(-0.65, 0.02, -0.1);
 				this.audioButton.container.alphaIndex = 10;
 
 				this.audioButton.setMuted(true);
 
 				this.playButton = new Component.PlayButton(this.playerInstance, this.container);
-				this.playButton.container.position.set(0, 0.01, -0.1);
+				this.playButton.container.position.set(0, 0.04, -0.1);
 				this.playButton.container.alphaIndex = 10;
 
 				this.containerRectangle.thickness    = 2;
