@@ -96,6 +96,4 @@ The `build.sh` script found inside the `source` folder should build your player 
 
 ## Compatibility
 
-The current version of the player should run properly on all the mainstream vr headsets on the market with or without a controller.
-
-Support for Apple Vision Pro is still in development and should arrive soon.
+The current version of the player should run properly on all the mainstream vr headsets on the market with or without a controller. Eg: Meta Oculus Quest, Pico, Apple Vision Pro ...
